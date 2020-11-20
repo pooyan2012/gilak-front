@@ -1,4 +1,4 @@
-//3. Menu and active links
+//5. Environment variables
 import React from "react";
 import ReactDOM from "react-dom";
 import Routes from "./Routes";
