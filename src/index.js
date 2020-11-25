@@ -1,4 +1,4 @@
-//1. Private route for authenticated users only
+//2. Category create success and error
 import React from "react";
 import ReactDOM from "react-dom";
 import Routes from "./Routes";
