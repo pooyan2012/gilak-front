@@ -1,4 +1,4 @@
-//2. Category create success and error
+//4. Create product part two
 import React from "react";
 import ReactDOM from "react-dom";
 import Routes from "./Routes";
