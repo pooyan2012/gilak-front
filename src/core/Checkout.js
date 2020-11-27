@@ -1,189 +1,178 @@
-import React, {useState, useEffect} from 'react';
-import {Link} from 'react-router-dom';
-import {isAuthenticated} from '../auth';
-import {getBraintreeClientToken, processPayment, createOrder} from './apiCore';
-import {emptyCart} from './cartHelpers';
-import DropIn from 'braintree-web-drop-in-react';
+import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
+import { isAuthenticated } from "../auth";
+import {
+  getBraintreeClientToken,
+  processPayment,
+  createOrder,
+} from "./apiCore";
+import { emptyCart } from "./cartHelpers";
+import DropIn from "braintree-web-drop-in-react";
 
-const Checkout = ({products, refresh}) => {
-    const [data, setData] = useState({
-        success: false,
-        loading: false,
-        clientToken: '',
-        error: '',
-        instance: {},
-        address: ''
+const Checkout = ({ products, refresh }) => {
+  const [data, setData] = useState({
+    success: false,
+    loading: false,
+    clientToken: "",
+    error: "",
+    instance: {},
+    address: "",
+  });
+
+  let deliveryAddress = data.address;
+
+  useEffect(() => {
+    getPaymentToken(userId, token);
+  }, []);
+
+  const userId = isAuthenticated() && isAuthenticated().user._id;
+  const token = isAuthenticated() && isAuthenticated().token;
+
+  const getPaymentToken = (userId, token) => {
+    getBraintreeClientToken(userId, token).then((data) => {
+      if (data.error) {
+        setData({ ...data, error: data.error });
+      } else {
+        setData({ clientToken: data.clientToken });
+      }
     });
+  };
 
-    let deliveryAddress = data.address;
+  const handleAddress = (event) => {
+    setData({ ...data, address: event.target.value });
+  };
 
-    useEffect(() => {
-        getPaymentToken(userId, token);
-    }, []);    
+  const getTotal = () => {
+    return products.reduce((currVal, nextVal) => {
+      return currVal + nextVal.count * nextVal.price;
+    }, 0);
+  };
 
-    const userId = isAuthenticated() && isAuthenticated().user._id;
-    const token = isAuthenticated() && isAuthenticated().token;
+  const showCheckout = () => {
+    return (
+      <div className="mt-2 mb-2">
+        {isAuthenticated() ? (
+          <div>{showDropIn()}</div>
+        ) : (
+          <Link to="/signin">
+            <button className="btn btn-primary">Sign in to checkout</button>
+          </Link>
+        )}
+      </div>
+    );
+  };
 
-    const getPaymentToken = (userId, token) => {
-        getBraintreeClientToken(userId, token)
-        .then(data => {
-            if (data.error) {
-                setData({...data, error: data.error});
-            } else {
-                setData({clientToken: data.clientToken});
-            }
-        })
-    }
+  const buy = () => {
+    setData({ ...data, loading: true });
 
-    const handleAddress = event => {
-        setData({...data, address: event.target.value});
-    }
+    let nonce;
+    let getNonce = data.instance
+      .requestPaymentMethod()
+      .then((data) => {
+        nonce = data.nonce;
 
-    const getTotal = () => {
-        return products.reduce((currVal, nextVal) => {
-            return currVal + nextVal.count * nextVal.price;
-        }, 0);
-    }
+        const paymentData = {
+          paymentMethodNonce: nonce,
+          amount: getTotal(products),
+        };
 
-    const showCheckout = () => {
-        return(
-            <div className='mt-2 mb-2'>
-                {isAuthenticated() ? (
-                    <div>
-                        {showDropIn()}
-                    </div>                       
+        processPayment(userId, token, paymentData)
+          .then((response) => {
+            const createOrderData = {
+              products: products,
+              transaction_id: response.transaction_id,
+              amount: response.transaction.amount,
+              address: deliveryAddress,
+            };
 
-                ) : (
-                    <Link to='/signin'>
-                        <button className='btn btn-primary'>
-                            Sign in to checkout
-                        </button>
-                    </Link>
-                )}
-            </div>
-        );
-    }
+            createOrder(userId, token, createOrderData);
 
-    const buy = () => {
-        setData({...data, loading: true});
+            emptyCart(() => {
+              refresh(true);
+              console.log("Successfully processed the payment and empty cart");
 
-        let nonce;
-        let getNonce = data.instance.requestPaymentMethod()
-            .then(data => {
-                nonce = data.nonce;
-
-                const paymentData = {
-                    paymentMethodNonce: nonce,
-                    amount: getTotal(products)
-                };
-
-                processPayment(userId, token, paymentData)
-                .then(response => {
-                    const createOrderData = { 
-                        products: products,
-                        transaction_id: response.transaction_id,
-                        amount: response.transaction.amount,
-                        address: deliveryAddress
-                    };
-                    
-                    createOrder(userId, token, createOrderData);
-
-                    emptyCart(() => {
-                        refresh(true);
-                        console.log('Successfully processed the payment and empty cart');
-
-                        setData({...data,
-                            loading: false,
-                            success: true
-                        });
-                    });
-
-
-                })
-                .catch(error => {
-                    console.log(error);
-                    setData({...data, loading: false});
-                })
-            })
-            .catch(error => {
-                setData({...data, error: error.message});
+              setData({ ...data, loading: false, success: true });
             });
-    }
+          })
+          .catch((error) => {
+            console.log(error);
+            setData({ ...data, loading: false });
+          });
+      })
+      .catch((error) => {
+        setData({ ...data, error: error.message });
+      });
+  };
 
-    const showDropIn = () => {
-        return(
-            <div onBlur={() => setData({...data, error: ''})}>
-                {data.clientToken !== null && data.clientToken !== '' && products.length > 0 ? (
-                    <div>
-                        <div className='form-group mb-3'>
-                            <label className='text-muted'>
-                                Delivery address:
-                            </label>
-                            <textarea
-                                onChange={handleAddress}
-                                className='form-control'
-                                value={data.address}
-                                placeholder='Type your delivery address here'>
-                            </textarea>
-                        </div>
-                        <DropIn
-                            options={{
-                                authorization: data.clientToken,
-                                paypal: {
-                                    flow: 'vault'
-                                }
-                            }}
-                            onInstance={(instance) => (data.instance = instance)}/>
-                        <button
-                            className='btn btn-success btn-block'
-                            onClick={buy}>
-                            Pay
-                        </button>
-                    </div>
-                ) : null}
+  const showDropIn = () => {
+    return (
+      <div onBlur={() => setData({ ...data, error: "" })}>
+        {data.clientToken !== null &&
+        data.clientToken !== "" &&
+        products.length > 0 ? (
+          <div>
+            <div className="form-group mb-3">
+              <label className="text-muted">Delivery address:</label>
+              <textarea
+                onChange={handleAddress}
+                className="form-control"
+                value={data.address}
+                placeholder="Type your delivery address here"
+              ></textarea>
             </div>
-        );
-    }
-    
-    const showError = (error) => {
-        return(
-            <div 
-                className='alert alert-danger'
-                style={{display: error ? '' : 'none'}}>
-                {error}
-            </div>
-        );
-    }
-
-    const showLoading = (loading) => (
-        loading && (
-            <h2>
-                Loading...
-            </h2>
-        )
+            <DropIn
+              options={{
+                authorization: data.clientToken,
+                paypal: {
+                  flow: "vault",
+                },
+              }}
+              onInstance={(instance) => (data.instance = instance)}
+            />
+            <button className="btn btn-success btn-block" onClick={buy}>
+              Pay
+            </button>
+          </div>
+        ) : null}
+      </div>
     );
+  };
 
-    const showSuccess = (success) => {
-        return(
-            <div 
-                className='alert alert-info'
-                style={{display: success ? '' : 'none'}}>
-                Payment processed successfully! Thanks for purchasing
-            </div>
-        );
-    }
-
-    return(
-        <div>
-            <h2>
-                Total: ${getTotal()}
-                {showLoading(data.loading)}
-                {showSuccess(data.success)}
-                {showError(data.error)}
-                {showCheckout()}
-            </h2>
-        </div>
+  const showError = (error) => {
+    return (
+      <div
+        className="alert alert-danger"
+        style={{ display: error ? "" : "none" }}
+      >
+        {error}
+      </div>
     );
-}
+  };
+
+  const showLoading = (loading) => loading && <h2>Loading...</h2>;
+
+  const showSuccess = (success) => {
+    return (
+      <div
+        className="alert alert-info"
+        style={{ display: success ? "" : "none" }}
+      >
+        Payment processed successfully! Thanks for purchasing
+      </div>
+    );
+  };
+
+  return (
+    <div>
+      <h2>
+        Total: ${getTotal()}
+        {showLoading(data.loading)}
+        {showSuccess(data.success)}
+        {showError(data.error)}
+        {showCheckout()}
+      </h2>
+    </div>
+  );
+};
 
 export default Checkout;
