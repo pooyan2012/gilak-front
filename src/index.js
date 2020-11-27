@@ -1,6 +1,6 @@
-//4. Create product part two
-import React from "react";
-import ReactDOM from "react-dom";
-import Routes from "./Routes";
+//11. Styling buttons and jumbotron
+import React from 'react';
+import ReactDOM from 'react-dom';
+import Routes from './Routes';
 
-ReactDOM.render(<Routes />, document.getElementById("root"));
+ReactDOM.render(<Routes />, document.getElementById('root'));

@@ -1,86 +1,104 @@
-import React, { useState } from "react";
-import Layout from "../core/Layout";
-import { isAuthenticated } from "../auth";
-import { Link } from "react-router-dom";
-import { createCategory } from "./apiAdmin";
+import React, {useState, useEffect} from 'react';
+import Layout from '../core/Layout';
+import {isAuthenticated} from '../auth';
+import {Link} from 'react-router-dom';
+import {createCategory} from './apiAdmin';
 
 const AddCategory = () => {
-  const [name, setName] = useState("");
-  const [error, setError] = useState(false);
-  const [success, setSuccess] = useState(false);
+    const [name, setName] = useState('');
+    const [error, setError] = useState(false);
+    const [success, setSuccess] = useState(false);
+    const [showResultMsg, setShowResultMsg] = useState(false);
 
-  //destructuring user and token from localstorage
-  const { user, token } = isAuthenticated();
+    const {user, token} = isAuthenticated();
 
-  const handleChange = (e) => {
-    setError("");
-    setSuccess("");
-    setName(e.target.value);
-  };
-
-  const clickSubmit = (e) => {
-    e.preventDefault();
-    setError("");
-    setSuccess(false);
-    //make request to api to create category
-    createCategory(user._id, token, { name }).then((data) => {
-      if (data.error) {
-        setError(true);
-      } else {
-        setError("");
-        setSuccess(true);
-      }
-    });
-  };
-  const newCategoryForm = () => (
-    <form onSubmit={clickSubmit}>
-      <div className="form-group">
-        <label className="text-muted">Name</label>
-        <input
-          type="text"
-          className="form-control"
-          value={name}
-          onChange={handleChange}
-          autoFocus
-          required
-        />
-      </div>
-      <button className="btn btn-outline-primary">Create Category</button>
-    </form>
-  );
-
-  const showSuccess = () => {
-    if (success) {
-      return <h3 className="text-success">{name} is created</h3>;
+    const handleChange = (e) => {
+        setError('');
+        setName(e.target.value);
     }
-  };
-  const showError = () => {
-    if (error) {
-      return <h3 className="text-danger">category should be unique</h3>;
+
+    const clickSubmit = (e) => {
+        e.preventDefault();
+        setError('');
+        setSuccess(false);
+        setShowResultMsg(false);
+
+        createCategory(user._id, token, {name})
+        .then((data) => {
+            setShowResultMsg(true);                
+            
+            if (data.error) {
+                setError(true);
+            } else {
+                setError('');
+                setSuccess(true);
+            }
+        });
     }
-  };
-  const goBack = () => (
-    <div className="mt-5">
-      <Link to="/admin/dashboard" className="text-warning">
-        Back to Dashboard
-      </Link>
-    </div>
-  );
-  return (
-    <Layout
-      title="Add a new category"
-      description={`G'day ${user.name}, ready to add a new category?`}
-    >
-      <div className="row">
-        <div className="col-md-8 offset-md-2">
-          {showSuccess()}
-          {showError()}
-          {newCategoryForm()}
-          {goBack()}
-        </div>
-      </div>
-    </Layout>
-  );
-};
+
+    const newCategoryForm = () => {
+        return(
+            <form onSubmit={clickSubmit}>
+                <div className='form-group'>
+                    <label className='text-muted'>
+                        Name
+                    </label>
+                    <input
+                        type='text'
+                        className='form-control'
+                        onChange={handleChange}
+                        value={name}
+                        required
+                        autoFocus>
+                    </input>
+                </div>
+                <button className='btn btn-outline-primary'>
+                    Create Category
+                </button>                
+            </form>
+        );
+    }
+
+    const showResult = () => {
+        var msgClass = 'text-' + (error ? 'danger' : 'success'); 
+        var result = (error ? 'Category name already in use!' : `Category ${name} successfully created!`); 
+        
+        setTimeout(() => {
+            setShowResultMsg(false);
+        }, 3000);
+          
+        return(
+            <h3 className={msgClass}>
+                {result}
+            </h3>
+        );
+    }
+
+    const goBack = () => {
+        return(
+            <div className='mt-5'>
+                <Link
+                    to='/admin/dashboard'
+                    className='text-warning'>
+                        Back to dashboard
+                </Link>
+            </div>
+        );
+    }
+    
+    return(
+        <Layout
+            title='Add a new category'
+            description={`Hello, ${user.name}! Ready to add a new category?`}>
+            <div className='row'>
+                <div className='col-md-8 offset-md-2'>
+                    {showResultMsg ? showResult() : ''}
+                    {newCategoryForm()}
+                    {goBack()}
+                </div>
+            </div>
+        </Layout>
+    );
+}
 
 export default AddCategory;
