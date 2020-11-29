@@ -1,4 +1,4 @@
-//12. Load more button
+//2. Search form
 import React from "react";
 import ReactDOM from "react-dom";
 import Routes from "./Routes";
