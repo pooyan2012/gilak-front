@@ -1,4 +1,4 @@
-//5. Passing categories filter to parent component
+//12. Load more button
 import React from "react";
 import ReactDOM from "react-dom";
 import Routes from "./Routes";
